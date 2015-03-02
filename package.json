@@ -23,7 +23,7 @@
     "test": "tape test/*.js | tap-spec",
     "test-continuous": "npm test; dirwatch *.js test/*.js -c 'which tput && tput clear; date; tape test/*.js' | tap-spec",
     "prepublish": "npm run build && npm run test && npm run lint",
-    "lint": "jsxhint src/* test/*"
+    "lint": "jsxhint --harmony src/* test/*"
   },
   "main": "index.js",
   "directories": {

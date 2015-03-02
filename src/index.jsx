@@ -10,22 +10,16 @@ var Draggable = require('react-draggable'),
 // Misc Helpers
 // ------------
 
-function compose() {
-  var args = arguments;
-  var start = args.length - 1;
-  return function() {
-    var i = start;
-    var result = args[start].apply(this, arguments);
-    while (i--) result = args[i].call(this, result);
-    return result;
-  };
+function rectContains(rect, x, y) {
+  return rect.left <= x && x <= rect.right &&
+         rect.top <= y && y <= rect.bottom;
 }
 
-var squareFilter = function(shape) {
+var squareTransform = function(shape) {
   return ['rect', shape[1]];
 };
 
-var pinkFilter = function(shape) {
+var pinkTransform = function(shape) {
   var attrs = extend({}, shape[1]);
   attrs.fill = 'pink';
   return [shape[0], attrs];
@@ -44,9 +38,6 @@ var SvgCanvas = React.createClass({
       return React.createElement.apply(null, s);
     });
     return <svg id='canvas' onClick={this.handleClick}>{children}</svg>;
-  },
-  handleClick: function(e) {
-    this.props.clickHandler(e);
   }
 });
 
@@ -55,11 +46,16 @@ var SvgCanvas = React.createClass({
 
 var Toolglass = React.createClass({
   getInitialState: function() {
-    return {position: {top: 0, left: 0}};
+    return {
+      position: { top: this.props.top || 0, left: this.props.left || 0 }
+    };
   },
   handleClick: function(e) {
-    this.props.clickHandler(e);
-    e.stopPropagation();
+    // Swallow clicks on the drag handle.
+    if (e.target.classList.contains('toolglass-handle')) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
   },
   handleDrag: function(e, ui) {
     this.setState(ui);
@@ -71,13 +67,16 @@ var Toolglass = React.createClass({
       top: this.state.position.top
     };
     return (
-        <Draggable onDrag={this.handleDrag}>
-          <div style={style}>
-            <div className='toolglass' onClick={this.handleClick}></div>
+        <Draggable onDrag={this.handleDrag} start={ {x: style.left, y: style.top} }>
+          <div style={style} onClick={this.handleClick}>
+            <div className='toolglass'></div>
             <div className='toolglass-handle'>{this.props.description}</div>
           </div>
         </Draggable>
     );
+  },
+  transform: function(shape) {
+    return this.props.transform(shape);
   }
 });
 
@@ -90,22 +89,41 @@ var App = React.createClass({
     return { shapes: [] };
   },
   render: function() {
+    var i = 0;
+    var makeRef = () => 'child' + i++;
+
+    this.toolglassComponents = [
+      <Toolglass
+          shapes={this.state.shapes}
+          transform={squareTransform}
+          description='square'
+          ref={makeRef()} />,
+      <Toolglass
+          shapes={this.state.shapes}
+          transform={pinkTransform}
+          description='pink'
+          ref={makeRef()}
+          top={80}
+          left={80} />
+    ];
     return (
-      <div id="root">
-        <SvgCanvas
-            ref='canvas'
-            shapes={this.state.shapes}
-            clickHandler={this.defaultHandleClick} />
-        <Toolglass
-            shapes={this.state.shapes}
-            clickHandler={compose(this.addShape, squareFilter, this.makeCircleOnClick)}
-            description='square' />
-        <Toolglass
-            shapes={this.state.shapes}
-            clickHandler={compose(this.addShape, pinkFilter, this.makeCircleOnClick)}
-            description='pink' />
+      <div id="root" onClick={this.handleClick}>
+        <SvgCanvas shapes={this.state.shapes} />
+        {this.toolglassComponents}
       </div>
     );
+  },
+
+  handleClick: function(e) {
+    var shape = this.makeShape('circle', e.pageX, e.pageY);
+    for (var k in this.refs) {
+      var component = this.refs[k];
+      var rect = component.getDOMNode().getBoundingClientRect();
+      if (rectContains(rect, e.clientX, e.clientY)) {
+        shape = component.transform(shape);
+      }
+    }
+    this.addShape(shape);
   },
 
   makeShape: function(kind, x, y) {
@@ -123,31 +141,12 @@ var App = React.createClass({
     return [kind, attrs];
   },
 
-  makeCircleOnClick: function(e) {
-    return this.makeShape('circle', e.pageX, e.pageY);
-  },
-
   addShape: function(shape) {
     this.setState({shapes: this.state.shapes.concat([shape])});
-  },
-
-  defaultHandleClick: function(e) {
-    this.addShape(this.makeCircleOnClick(e));
   }
 });
 
 // Main
 // ----
 
-(function main() {
-  var app = React.render(<App/>, document.body);
-
-  window.addEventListener('keypress', function(e) {
-    var key = String.fromCharCode(e.keyCode);
-      if (key === 'r') {
-        app.refs.canvas.setState({ currentShape: 'rect' });
-      } else if (key === 'c') {
-        app.refs.canvas.setState({ currentShape: 'circle' });
-      }
-  });
-})();
+React.render(<App/>, document.body);
