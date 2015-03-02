@@ -7,16 +7,27 @@
       height: 100%;
       margin: 0;
     }
-    #canvas {
+    #root, #canvas {
       cursor: crosshair;
       height: 100%;
       margin: 0;
       width: 100%;
     }
+    .toolglass-handle {
+      background-color: #ccc;
+      cursor: move;
+      height: 10px;
+      width: 10px;
+    }
+    .toolglass {
+      border: 1px solid #ccc;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+      min-height: 200px;
+      min-width: 200px;
+    }
   </style>
 </head>
 <body>
-  <script src="third_party/react.js"></script>
   <script src="index.js"></script>
 </body>
 </html>
